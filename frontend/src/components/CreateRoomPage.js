@@ -50,7 +50,7 @@ export default class CreateRoomPage extends Component {
 
                 <Grid item xs={12} align="center">
                     <Typography component="h4" variant="h4">
-                    Create A Room
+                    Create a Room
                   </Typography>
                 </Grid>
 

@@ -12,6 +12,8 @@ class RoomView(generics.ListAPIView):
 
 
 class CreateRoomView(APIView):
+    # creates new room
+    # called from CreateRoomPage.js component
     serializer_class = CreateRoomSerializer
 
     def post(self, request):
@@ -49,31 +51,42 @@ class CreateRoomView(APIView):
         return Response({'Bad Request': 'Invalid data...'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class GetRoomView(APIView):
+class GetRoom(APIView):
+    # gets information about room by it's code
+    # called from Room.js component
     lookup_url_kwarg = 'code'
 
     def get(self, request):
+        # find if there is a code in request
         code = request.GET.get(self.lookup_url_kwarg)
         if code is not None:
+            # select room with given code
             room = Room.objects.filter(code=code)
-            if len(room) > 0:
+            if room.exists():
+                # get data dictionary of room
                 data = RoomSerializer(room[0]).data
+                # add new boolean field "is_host"
                 data['is_host'] = self.request.session.session_key == room[0].host
                 return Response(data, status=status.HTTP_200_OK)
             return Response({'Room Not Found': 'Invalid Room Code'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'Bad Request': 'Code parameter not found in request'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class JoinRoomView(APIView):
+class JoinRoom(APIView):
+    # joins the room by given code
+    # called from JoinRoomPage.js component
     lookup_url_kwarg = "code"
 
     def post(self, request):
         if not self.request.session.exists(self.request.session.session_key):
             self.request.session.create()
+        # find if there is a code in request
         code = request.data.get(self.lookup_url_kwarg)
         if code is not None:
+            # select rooms with given code
             room_result = Room.objects.filter(code=code)
-            if len(room_result) > 0:
+            if room_result.exists() > 0:
+                # add 'room_code' value to session data
                 self.request.session['room_code'] = code
                 return Response({'message': 'Room Joined!'}, status=status.HTTP_200_OK)
             return Response({'Bad request': 'Invalid Room Code'}, status=status.HTTP_404_NOT_FOUND)
@@ -81,9 +94,12 @@ class JoinRoomView(APIView):
 
 
 class UserInRoom(APIView):
+    # checks if user is in room
+    # called from HomePage.js component
     def get(self, request):
         if not self.request.session.exists(self.request.session.session_key):
             self.request.session.create()
+        # if user is not in the room, 'code' will be equal to None
         data = {
             'code': self.request.session.get('room_code'),
         }
@@ -91,9 +107,13 @@ class UserInRoom(APIView):
 
 
 class LeaveRoom(APIView):
+    # leaves the room
+    # called from Room.js component
     def post(self, request):
         if 'room_code' in self.request.session:
+            # remove 'room_code' value from session data
             self.request.session.pop('room_code')
+            # if host leaves the room, delete room from database
             host_id = self.request.session.session_key
             room_result = Room.objects.filter(host=host_id)
             if len(room_result) > 0:
@@ -103,23 +123,30 @@ class LeaveRoom(APIView):
 
 
 class UpdateRoom(APIView):
+    # updates room data
+    # called from CreateRoomPage.js component
     serializer_class = UpdateRoomSerializer
 
     def patch(self, request):
         if not self.request.session.exists(self.request.session.session_key):
             self.request.session.create()
+        # initialize serializer
         serializer = self.serializer_class(data=self.request.data)
         if serializer.is_valid():
+            # getting data from serializer
             votes_to_skip = serializer.data.get('votes_to_skip')
             guest_can_pause = serializer.data.get('guest_can_pause')
             code = serializer.data.get('code')
+            # checking if room exists
             queryset = Room.objects.filter(code=code)
             if not queryset.exists():
                 return Response({'Message': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
             room = queryset[0]
+            # only host can modify the room
             user_id = self.request.session.session_key
             if room.host != user_id:
                 return Response({'Message': 'You are not a host'}, status=status.HTTP_403_FORBIDDEN)
+            # changing and saving data
             room.guest_can_pause = guest_can_pause
             room.votes_to_skip = votes_to_skip
             room.save(update_fields=['guest_can_pause', 'votes_to_skip'])

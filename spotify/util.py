@@ -22,9 +22,10 @@ def update_or_create_user_tokens(session_id, access_token, token_type, expires_i
         tokens.token_type = token_type
         tokens.save(update_fields=['access_token', 'refresh_token', 'expires_in', 'token_type'])
     else:
-        tokens = SpotifyToken(user=session_id, access_token = access_token, token_type=token_type, expires_in=expires_in,
-                              refresh_token=refresh_token)
+        tokens = SpotifyToken(user=session_id, access_token=access_token, token_type=token_type,
+                              expires_in=expires_in, refresh_token=refresh_token)
         tokens.save()
+
 
 def is_spotify_authenticated(session_id):
     tokens = get_user_tokens(session_id)
@@ -34,6 +35,7 @@ def is_spotify_authenticated(session_id):
             refresh_spotify_token(session_id)
         return True
     return False
+
 
 def refresh_spotify_token(session_id):
     refresh_token = get_user_tokens(session_id).refresh_token
